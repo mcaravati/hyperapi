@@ -7,6 +7,11 @@ from icalendar import Calendar
 import pytz
 import requests
 
+REGEX_ID = re.compile("^M[0-9]+")
+REGEX_TEACHERS = re.compile("M\.|Mme|_enseignant inconnu_")
+REGEX_TYPE = re.compile("TP_*|TD_*|Cours_*")
+REGEX_DS = re.compile("DS_*")
+
 
 class Lesson:
     """
@@ -119,28 +124,34 @@ def event_filter(event: dict):
 
     header = event.get("SUMMARY").split(" - ")
 
-    if len(header) == 3:
-        if re.match("^M[0-9]*", header[0]):
-            event_id = header[0].split(' ', 1)[0]
-            event_name = header[0].split(' ', 1)[1]
-        else:
-            event_name = header[0]
-        if re.match("M\.|Mme|_enseignant inconnu_", header[1]):
-            event_teacher = header[1].strip()
-        if re.match("TP|TD", header[2]):
-            event_type = header[2]
-        else:
-            try:
-                event_type = header[3]
-            except IndexError:
-                event_type = "None"
-        try:
-            event_room = event.get("LOCATION")
-        except KeyError:
-            pass
+    regex_result = list(filter(REGEX_ID.match, header))
+    if regex_result:
+        event_id = regex_result[0].split(' ')[0]
+        event_name = regex_result[0].split(' ')[1]
+    else:
+        event_name = header[0]
 
-        event_start_date = event.get("DTSTART").dt.strftime("%Y-%m-%d")
-        event_end_date = event.get("DTEND").dt.strftime("%Y-%m-%d")
+    regex_result = list(filter(REGEX_TEACHERS.match, header))
+    if regex_result:
+        event_teacher = regex_result[0].strip()
+
+    regex_result = list(filter(REGEX_TYPE.match, header))
+    if regex_result:
+        event_type = regex_result[0]
+
+    regex_result = list(filter(REGEX_DS.match, header))
+    if regex_result:
+        event_type = regex_result[0]
+        event_name += " : " + header[len(header) - 2]
+
+    try:
+        event_room = event.get("LOCATION")
+    except KeyError:
+        pass
+
+    event_start_date = event.get("DTSTART").dt.strftime("%Y-%m-%d")
+    event_end_date = event.get("DTEND").dt.strftime("%Y-%m-%d")
+    if len(str(event.get("DTSTART").dt).split(' ')) != 1:
         utc = pytz.UTC
         if event.get("DTEND").dt > utc.localize(datetime(2020, 3, 29)):
             event_start_hour = (
