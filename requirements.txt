@@ -1,0 +1,7 @@
+flask~=1.1.2
+icalendar~=4.0.5
+flask-cors
+sqlite3
+isoweek~=1.3.3
+pytz~=2019.3
+requests~=2.23.0
