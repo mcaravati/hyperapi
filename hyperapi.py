@@ -24,21 +24,17 @@ class Lesson:
         :param kwargs: Constructor's arguments
         """
 
-        self.lesson_id = self.name = \
-            self.teacher = self.type = \
-            self.room = ''
-
-        self.lesson_id = kwargs.get('lesson_id')
-        self.name = kwargs.get('name')
-        self.teacher = kwargs.get('teacher')
-        self.type = kwargs.get('type')
-        self.room = kwargs.get('room')
-        self.start_date = kwargs.get('start_date')
-        self.end_date = kwargs.get('end_date')
-        self.start_hour = kwargs.get('start_hour')
-        self.start_db = kwargs.get('start_db')
-        self.end_hour = kwargs.get('end_hour')
-        self.end_db = kwargs.get('end_db')
+        self.lesson_id = kwargs.get('lesson_id') if kwargs.get('lesson_id') else ""
+        self.name = kwargs.get('name') if kwargs.get('name') else ""
+        self.teacher = kwargs.get('teacher') if kwargs.get('teacher') else ""
+        self.type = kwargs.get('type') if kwargs.get('type') else ""
+        self.room = kwargs.get('room') if kwargs.get('room') else ""
+        self.start_date = kwargs.get('start_date') if kwargs.get('start_date') else ""
+        self.end_date = kwargs.get('end_date') if kwargs.get('end_date') else ""
+        self.start_hour = kwargs.get('start_hour') if kwargs.get('start_hour') else ""
+        self.start_db = kwargs.get('start_db') if kwargs.get('start_db') else ""
+        self.end_hour = kwargs.get('end_hour') if kwargs.get('end_hour') else ""
+        self.end_db = kwargs.get('end_db') if kwargs.get('end_db') else ""
 
     def show(self):
         """

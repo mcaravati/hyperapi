@@ -26,6 +26,13 @@ def create_class(name: str, url: str):
                   "version=2019.0.5.0&idICal={}&param=643d5b312e2e36325d2666683d3126663d31".format(
                       url))
 
+def parse_config():
+    school_class_list = []
+    with open('config/calendars.config', 'r') as config:
+        for line in config.readlines():
+            school_class = line.split(':')
+            school_class_list.append(create_class(school_class[0], school_class[1].replace('\n', '')))
+    return school_class_list
 
 class DatabaseManager:
     """
@@ -37,8 +44,8 @@ class DatabaseManager:
         :param database: The desired database
         """
         self.database = database
-        self.classes = [
-            create_class("example class", "example calendar ID"), ]
+        self.classes = parse_config()
+        print(self.classes)
 
         # DB tables creation
         connection = sqlite3.connect(self.database)
@@ -160,7 +167,7 @@ class DatabaseManager:
         rooms = room_list.split(",")
         for room in rooms:
             connection.execute(
-                'INSERT INTO salles(numeroSalle) VALUES("' + room + '") ;'
+                'INSERT OR IGNORE INTO salles(numeroSalle) VALUES("' + room + '");'
             )
 
     @staticmethod
@@ -174,7 +181,7 @@ class DatabaseManager:
         """
         teachers = teachers_list.split(", ")
         for teacher in teachers:
-            connection.execute('INSERT INTO profs(nomProf) VALUES("' + teacher + '");')
+            connection.execute('INSERT OR IGNORE INTO profs(nomProf) VALUES("' + teacher + '");')
 
     @staticmethod
     def add_course(course_id: str, course_name: str, connection):
@@ -187,7 +194,7 @@ class DatabaseManager:
             None
         """
         connection.execute(
-            'INSERT INTO cours(idMatiere, nomMatiere) VALUES("'
+            'INSERT OR IGNORE INTO cours(idMatiere, nomMatiere) VALUES("'
             + course_id
             + '", "'
             + course_name
@@ -203,7 +210,7 @@ class DatabaseManager:
         :return:
             None
         """
-        connection.execute('INSERT INTO classes(nomClasse) VALUES("' + school_class + '");')
+        connection.execute('INSERT OR IGNORE INTO classes(nomClasse) VALUES("' + school_class + '");')
 
     @staticmethod
     def add_session(session: hyperapi.Lesson, school_class: str, connection):
@@ -216,7 +223,7 @@ class DatabaseManager:
             None
         """
         connection.execute(
-            """INSERT INTO sessions(debut, fin, idMatiere, nomMatiere, """ +
+            """INSERT OR IGNORE INTO sessions(debut, fin, idMatiere, nomMatiere, """ +
             """nomProf, numeroSalle, typeCours, nomClasse) VALUES (\'"""
             + session.start_date
             + """ """

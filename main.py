@@ -24,11 +24,7 @@ def home():
     :return:
         str
     """
-    return "<h1>This is the home-made Hyperplanning API</h1>" + \
-           "<h3>Routes :</h3><ul>" + \
-           "<li>/api/[semester]/[group]/week/[weeknumber]</li>" + \
-           "<li>/api/[semester]/[group]/day/[date]</li>" + \
-           "<li>/api/[semester]/[group]/today</li>"
+    return flask.render_template('index.html')
 
 
 @APP.route('/api/s2/<group>/<period>', defaults={'bounds': None})
