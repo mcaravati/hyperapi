@@ -4,17 +4,20 @@
 """
 import json
 from datetime import datetime, timedelta
+import logging
 import flask
 from flask_cors import CORS
 from flask import jsonify
 import databasemanager
 
-DB = databasemanager.DatabaseManager("database.db")
-DB.build()
+LOGGER = logging.getLogger("werkzeug")
+LOGGER.addHandler(logging.FileHandler("logs/connections.log", 'w'))
 
 APP = flask.Flask(__name__)
 CORS(APP)
 
+DB = databasemanager.DatabaseManager("database.db")
+DB.build()
 
 @APP.route('/', methods=['GET'])
 def home():

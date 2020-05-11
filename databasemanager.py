@@ -9,7 +9,8 @@ import logging
 import isoweek
 import hyperapi
 
-logging.basicConfig(filename="connection.log", filemode='w')
+LOGGER = logging.getLogger('root')
+LOGGER.addHandler(logging.FileHandler("logs/database.log", 'w'))
 Classe = namedtuple("Classe", ("nom", "url"), defaults=(None,))
 
 
@@ -27,11 +28,16 @@ def create_class(name: str, url: str):
                       url))
 
 def parse_config():
+    """
+        Parses the calendar config file
+    :return: A Classe list
+    """
     school_class_list = []
     with open('config/calendars.config', 'r') as config:
         for line in config.readlines():
             school_class = line.split(':')
-            school_class_list.append(create_class(school_class[0], school_class[1].replace('\n', '')))
+            school_class_list.append(create_class(school_class[0],
+                                                  school_class[1].replace('\n', '')))
     return school_class_list
 
 class DatabaseManager:
@@ -45,7 +51,6 @@ class DatabaseManager:
         """
         self.database = database
         self.classes = parse_config()
-        print(self.classes)
 
         # DB tables creation
         connection = sqlite3.connect(self.database)
@@ -125,34 +130,34 @@ class DatabaseManager:
                     try:
                         self.add_room(session.room, connection)
                     except (sqlite3.IntegrityError, AttributeError) as exception:
-                        logging.exception("%s occured while adding a session",
-                                          type(exception).__name__)
+                        LOGGER.exception("%s occured while adding a session",
+                                         type(exception).__name__)
                     try:
                         self.add_teacher(session.teacher, connection)
                     except (sqlite3.IntegrityError, AttributeError) as exception:
-                        logging.exception("%s occured while adding a session",
-                                          type(exception).__name__)
+                        LOGGER.exception("%s occured while adding a session",
+                                         type(exception).__name__)
                     try:
                         self.add_course(session.lesson_id, session.name, connection)
                     except (sqlite3.IntegrityError, AttributeError) as exception:
-                        logging.exception("%s occured while adding a session",
-                                          type(exception).__name__)
+                        LOGGER.exception("%s occured while adding a session",
+                                         type(exception).__name__)
                     try:
                         self.add_class(school_class, connection)
                     except (sqlite3.IntegrityError, AttributeError) as exception:
-                        logging.exception("%s occured while adding a session",
-                                          type(exception).__name__)
+                        LOGGER.exception("%s occured while adding a session",
+                                         type(exception).__name__)
                     try:
                         self.add_session(session, school_class, connection)
                     except (sqlite3.IntegrityError, TypeError) as exception:
-                        logging.exception("%s occured while adding a session",
-                                          type(exception).__name__)
+                        LOGGER.exception("%s occured while adding a session",
+                                         type(exception).__name__)
 
         connection.commit()
         connection.close()
-        print(
-            "[+] Database has been updated : "
-            + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        LOGGER.debug(
+            "[+] Database has been updated : {}"
+            .format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         )
 
     @staticmethod
@@ -210,7 +215,8 @@ class DatabaseManager:
         :return:
             None
         """
-        connection.execute('INSERT OR IGNORE INTO classes(nomClasse) VALUES("' + school_class + '");')
+        connection.execute('INSERT OR IGNORE INTO classes(nomClasse) VALUES("' +
+                           school_class + '");')
 
     @staticmethod
     def add_session(session: hyperapi.Lesson, school_class: str, connection):
