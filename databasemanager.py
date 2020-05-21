@@ -295,25 +295,29 @@ class DatabaseManager:
         ).fetchall()
 
         for session in results:
-            sessions_list.append(
-                hyperapi.Lesson(
-                    lesson_id=session[2],
-                    name=session[3],
-                    teacher=session[4],
-                    type=session[6],
-                    room=session[5],
-                    start_date=session[0].split()[0],
-                    end_date=session[1].split()[0],
-                    start_hour=datetime.datetime.strptime(
-                        session[0].split()[1], "%H:%M:%S"
-                        ).strftime("%Hh%M"),
-                    start_db="",
-                    end_hour=datetime.datetime.strptime(
-                        session[1].split()[1], "%H:%M:%S"
-                        ).strftime("%Hh%M"),
-                    end_db="",
+            try:
+                sessions_list.append(
+                    hyperapi.Lesson(
+                        lesson_id=session[2],
+                        name=session[3],
+                        teacher=session[4],
+                        type=session[6],
+                        room=session[5],
+                        start_date=session[0].split()[0],
+                        end_date=session[1].split()[0],
+                        start_hour=datetime.datetime.strptime(
+                            session[0].split()[1], "%H:%M:%S"
+                            ).strftime("%Hh%M"),
+                        start_db="",
+                        end_hour=datetime.datetime.strptime(
+                            session[1].split()[1], "%H:%M:%S"
+                            ).strftime("%Hh%M"),
+                        end_db="",
+                    )
                 )
-            )
+            except IndexError as e:
+                LOGGER.exception("%s : day is work-free")
+                pass
 
         # JSON building
         json = "["
