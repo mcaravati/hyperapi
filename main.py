@@ -7,9 +7,10 @@ from datetime import datetime, timedelta
 import logging
 import flask
 from flask_cors import CORS
-from flask import jsonify, Flask, request
+from flask import jsonify, Flask
 import databasemanager
 from configparser import ConfigParser
+
 
 PARSER = ConfigParser()
 PARSER.read('config/database.config')
@@ -22,6 +23,7 @@ CORS(APP)
 
 DB = databasemanager.DatabaseManager(PARSER.get('planning', 'path'))
 DB.build()
+
 
 @APP.route('/', methods=['GET'])
 def home():
@@ -43,15 +45,11 @@ def second_semester(group: str, period: str, bounds: str):
     hyperapi.hubday.fr/api/s2/<group>/<period>[/<bounds>]
 
     :param group: The group you want to get the lessons of
-    :param period: The desired period type
+    :param period: The desired period typeCours
     :param bounds: The bounds of the period
     :return:
         Json or str
     """
-
-    auth = request.authorization
-    if auth and auth.password == "pass":
-        token = jwt.encode({})
 
     result = None
 

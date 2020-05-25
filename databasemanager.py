@@ -8,6 +8,7 @@ from collections import namedtuple
 import logging
 import isoweek
 import hyperapi
+import json
 
 LOGGER = logging.getLogger('root')
 LOGGER.addHandler(logging.FileHandler("logs/database.log", 'w'))
@@ -17,7 +18,7 @@ Classe = namedtuple("Classe", ("nom", "url"), defaults=(None,))
 def create_class(name: str, url: str):
     """
         Creates an initialized Classe namedtuple
-    :param name: The name of the school class
+    :param name: The nomMatiere of the school class
     :param url: The URL of the appropriate .ical file
     :return:
         An initialized Classe namedtuple object
@@ -128,17 +129,17 @@ class DatabaseManager:
             for session in sessions_list:
                 if not session.is_empty():
                     try:
-                        self.add_room(session.room, connection)
+                        self.add_room(session.numeroSalle, connection)
                     except (sqlite3.IntegrityError, AttributeError) as exception:
                         LOGGER.exception("%s occured while adding a session",
                                          type(exception).__name__)
                     try:
-                        self.add_teacher(session.teacher, connection)
+                        self.add_teacher(session.nomProf, connection)
                     except (sqlite3.IntegrityError, AttributeError) as exception:
                         LOGGER.exception("%s occured while adding a session",
                                          type(exception).__name__)
                     try:
-                        self.add_course(session.lesson_id, session.name, connection)
+                        self.add_course(session.idMatiere, session.nomMatiere, connection)
                     except (sqlite3.IntegrityError, AttributeError) as exception:
                         LOGGER.exception("%s occured while adding a session",
                                          type(exception).__name__)
@@ -163,8 +164,8 @@ class DatabaseManager:
     @staticmethod
     def add_room(room_list: str, connection):
         """
-            Adds a room list to the database
-        :param room_list: The desired room list
+            Adds a numeroSalle list to the database
+        :param room_list: The desired numeroSalle list
         :param connection: The SQL connection
         :return:
             None
@@ -193,7 +194,7 @@ class DatabaseManager:
         """
             Adds a course to the database
         :param course_id: The course ID retrieved from Hyperplanning
-        :param course_name: The course name
+        :param course_name: The course nomMatiere
         :param connection: The SQL connection
         :return:
             None
@@ -231,25 +232,25 @@ class DatabaseManager:
         connection.execute(
             """INSERT OR IGNORE INTO sessions(debut, fin, idMatiere, nomMatiere, """ +
             """nomProf, numeroSalle, typeCours, nomClasse) VALUES (\'"""
-            + session.start_date
+            + session.dateDebut
             + """ """
             + session.start_db
             + """\', \'"""
-            + session.end_date
+            + session.dateFin
             + """ """
             + session.end_db
             + '''\', (SELECT id FROM cours WHERE idMatiere=\"'''
-            + session.lesson_id
+            + session.idMatiere
             + '''\" AND nomMatiere=\"'''
-            + session.name
+            + session.nomMatiere
             + '''\"), (SELECT id FROM cours WHERE nomMatiere=\"'''
-            + session.name
+            + session.nomMatiere
             + '''\"), (SELECT id FROM profs WHERE nomProf=\"'''
-            + session.teacher
+            + session.nomProf
             + '''\"),(SELECT id FROM salles WHERE numeroSalle=\"'''
-            + session.room
+            + session.numeroSalle
             + '''\"), \"'''
-            + session.type
+            + session.typeCours
             + '''\",(SELECT id FROM classes WHERE nomClasse=\"'''
             + school_class
             + """\"));"""
@@ -298,21 +299,19 @@ class DatabaseManager:
             try:
                 sessions_list.append(
                     hyperapi.Lesson(
-                        lesson_id=session[2],
-                        name=session[3],
-                        teacher=session[4],
-                        type=session[6],
-                        room=session[5],
-                        start_date=session[0].split()[0],
-                        end_date=session[1].split()[0],
-                        start_hour=datetime.datetime.strptime(
+                        idMatiere=session[2],
+                        nomMatiere=session[3],
+                        nomProf=session[4],
+                        typeCours=session[6],
+                        numeroSalle=session[5],
+                        dateDebut=session[0].split()[0],
+                        dateFin=session[1].split()[0],
+                        heureDebut=datetime.datetime.strptime(
                             session[0].split()[1], "%H:%M:%S"
                             ).strftime("%Hh%M"),
-                        start_db="",
-                        end_hour=datetime.datetime.strptime(
+                        heureFin=datetime.datetime.strptime(
                             session[1].split()[1], "%H:%M:%S"
                             ).strftime("%Hh%M"),
-                        end_db="",
                     )
                 )
             except IndexError as e:
@@ -320,13 +319,4 @@ class DatabaseManager:
                 pass
 
         # JSON building
-        json = "["
-        content = None
-        for session in sessions_list:
-            if not session.is_empty():
-                json += session.to_json() + ","
-        if len(json) != 1:
-            content = json[:-1] + "]"
-        else:
-            content = json + "]"
-        return content
+        return json.dumps(sessions_list, default=lambda o: o.__dict__)

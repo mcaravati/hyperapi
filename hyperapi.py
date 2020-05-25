@@ -24,43 +24,18 @@ class Lesson:
         :param kwargs: Constructor's arguments
         """
 
-        self.lesson_id = kwargs.get('lesson_id') if kwargs.get('lesson_id') else ""
-        self.name = kwargs.get('name') if kwargs.get('name') else ""
-        self.teacher = kwargs.get('teacher') if kwargs.get('teacher') else ""
-        self.type = kwargs.get('type') if kwargs.get('type') else ""
-        self.room = kwargs.get('room') if kwargs.get('room') else ""
-        self.start_date = kwargs.get('start_date') if kwargs.get('start_date') else ""
-        self.end_date = kwargs.get('end_date') if kwargs.get('end_date') else ""
-        self.start_hour = kwargs.get('start_hour') if kwargs.get('start_hour') else ""
-        self.start_db = kwargs.get('start_db') if kwargs.get('start_db') else ""
-        self.end_hour = kwargs.get('end_hour') if kwargs.get('end_hour') else ""
-        self.end_db = kwargs.get('end_db') if kwargs.get('end_db') else ""
-
-    def show(self):
-        """
-            Displays a formatted text version of Lesson in the console, for human-readable trace
-
-        :return:
-            None
-        """
-        print("\n=== COURS ===\n" +
-              "Type : {}\n" + self.lesson_id +
-              "Nom du cours : {}\n" + self.name +
-              "Professeur : {}\n" + self.teacher +
-              "Type de cours : {}\n" + self.type +
-              "Localisation : {}\n" + self.room +
-              "Date de début : {}\n" + self.start_date +
-              "Date de fin : {}\n" + self.end_date +
-              "Heure de début {}\n" + self.start_hour +
-              "Heure de fin : {}\n".format(self.lesson_id,
-                                           self.name,
-                                           self.teacher,
-                                           self.type,
-                                           "Salle inconnue" if self.room is None else self.room,
-                                           self.start_date,
-                                           self.end_date,
-                                           self.start_hour,
-                                           self.end_hour))
+        self.idMatiere = kwargs.get('idMatiere') or "ID inconnu"
+        self.nomMatiere = kwargs.get('nomMatiere') or "Nom inconnu"
+        self.nomProf = kwargs.get('nomProf') or "Enseignant inconnu"
+        self.typeCours = kwargs.get('typeCours') or "Type inconnu"
+        self.numeroSalle = kwargs.get('numeroSalle') or "Salle inconnue"
+        self.dateDebut = kwargs.get('dateDebut') or "Date inconnue"
+        self.dateFin = kwargs.get('dateFin') or "Date inconnue"
+        self.heureDebut = kwargs.get('heureDebut') or "Heure inconnue"
+        self.start_db = kwargs.get('start_db') or ""
+        self.heureFin = kwargs.get('heureFin') or "Heure inconnue"
+        self.end_db = kwargs.get('end_db') or ""
+        self.listeDevoirs = ""
 
     def is_empty(self):
         """
@@ -69,24 +44,7 @@ class Lesson:
         :return:
             True if the event is empty
         """
-        return self.name == '' and self.teacher == '' and (self.type == '' or self.type == 'Divers')
-
-    def to_json(self):
-        """
-            Converts the Lesson object to a JSON array
-
-        :return:
-            A JSON array
-        """
-        return '{"dateDebut":"' + self.start_date + \
-               '", "heureDebut":"' + self.start_hour + \
-               '", "heureFin":"' + self.end_hour + \
-               '", "idMatiere":"' + self.lesson_id + \
-               '", "nomMatiere":"' + self.name + \
-               '", "nomProf":"' + self.teacher + \
-               '", "typeCours":"' + self.type + \
-               '", "numeroSalle":"' + ("" if self.room is None else self.room) + \
-               '", "listeDevoirs":""}'
+        return self.nomMatiere == '' and self.nomProf == '' and (self.typeCours == '' or self.typeCours == 'Divers')
 
 
 def scrape(calendar: str):
@@ -176,16 +134,16 @@ def event_filter(event: dict):
                 event.get("DTEND").dt +
                 timedelta(hours=1)).strftime("%H:%M:%S")
 
-    return Lesson(lesson_id=event_id,
-                  name=event_name,
-                  teacher=event_teacher,
-                  type=event_type,
-                  room=event_room,
-                  start_date=event_start_date,
-                  end_date=event_end_date,
-                  start_hour=event_start_hour,
+    return Lesson(idMatiere=event_id,
+                  nomMatiere=event_name,
+                  nomProf=event_teacher,
+                  typeCours=event_type,
+                  numeroSalle=event_room,
+                  dateDebut=event_start_date,
+                  dateFin=event_end_date,
+                  heureDebut=event_start_hour,
                   start_db=event_start_db,
-                  end_hour=event_end_hour,
+                  heureFin=event_end_hour,
                   end_db=event_end_db)
 
 
