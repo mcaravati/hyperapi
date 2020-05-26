@@ -28,6 +28,7 @@ def create_class(name: str, url: str):
                   "version=2019.0.5.0&idICal={}&param=643d5b312e2e36325d2666683d3126663d31".format(
                       url))
 
+
 def parse_config():
     """
         Parses the calendar config file
@@ -41,6 +42,7 @@ def parse_config():
                                                   school_class[1].replace('\n', '')))
     return school_class_list
 
+
 class DatabaseManager:
     """
         Class to handle the .ical to database conversion
@@ -52,52 +54,81 @@ class DatabaseManager:
         """
         self.database = database
         self.classes = parse_config()
+        self.last_session = None
 
         # DB tables creation
         connection = sqlite3.connect(self.database)
         connection.execute(
             'CREATE TABLE IF NOT EXISTS ' +
-            'cours(id INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+            'cours(idCours INTEGER PRIMARY KEY AUTOINCREMENT, ' +
             'idMatiere TEXT NOT NULL, nomMatiere TEXT NOT NULL, ' +
             'UNIQUE(idMatiere, nomMatiere));'
         )
         connection.execute(
             'CREATE TABLE IF NOT EXISTS ' +
-            'profs(id INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+            'profs(idProf INTEGER PRIMARY KEY AUTOINCREMENT, ' +
             'nomProf TEXT NOT NULL, UNIQUE(nomProf));'
         )
         connection.execute(
             'CREATE TABLE IF NOT EXISTS ' +
-            'salles(id INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+            'salles(idSalle INTEGER PRIMARY KEY AUTOINCREMENT, ' +
             'numeroSalle TEXT NOT NULL, UNIQUE(numeroSalle));'
         )
         connection.execute(
             'CREATE TABLE IF NOT EXISTS ' +
-            'classes(id INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+            'classes(idClasse INTEGER PRIMARY KEY AUTOINCREMENT, ' +
             'nomClasse TEXT NOT NULL, UNIQUE(nomClasse));'
-        )
-        connection.execute(
-            'CREATE TABLE IF NOT EXISTS ' +
-            'groupes(id INTEGER PRIMARY KEY AUTOINCREMENT, ' +
-            'nomClasse TEXT NOT NULL, nomGroupe TEXT NOT NULL, UNIQUE(nomGroupe));'
         )
         connection.execute(
             'CREATE TABLE IF NOT EXISTS sessions(' +
             'id INTEGER PRIMARY KEY AUTOINCREMENT,' +
             'debut DATETIME NOT NULL,' +
             'fin DATETIME NOT NULL,' +
-            'idMatiere INTEGER NOT NULL,' +
-            'nomMatiere INTEGER NOT NULL,' +
-            'nomProf INTEGER NOT NULL,' +
-            'numeroSalle INTEGER NOT NULL,' +
-            'typeCours TEXT NOT NULL,' +
-            'nomClasse INTEGER NOT NULL,' +
+            'typeCours TEXT NOT NULL' +
+            ');'
+        )
+        # Link profs-session
+        connection.execute(
+            'CREATE TABLE IF NOT EXISTS lienPSe(' +
+            'idLienPSe INTEGER PRIMARY KEY AUTOINCREMENT,' +
+            'idProf INTEGER NOT NULL,' +
+            'idSession INTEGER NOT NULL,' +
 
-            'FOREIGN KEY(idMatiere) REFERENCES cours(id),' +
-            'FOREIGN KEY(nomMatiere) REFERENCES cours(id),' +
-            'FOREIGN KEY(nomProf) REFERENCES profs(id),' +
-            'FOREIGN KEY(numeroSalle) REFERENCES salles(id),' +
-            'FOREIGN KEY(nomClasse) REFERENCES classes(id)' +
+            'FOREIGN KEY(idProf) REFERENCES profs(idProf),' +
+            'FOREIGN KEY(idSession) REFERENCES sessions(idSession)' +
+            ');'
+        )
+        # Link salles-sessions
+        connection.execute(
+            'CREATE TABLE IF NOT EXISTS lienSaSe(' +
+            'idLienSaSe INTEGER PRIMARY KEY AUTOINCREMENT,' +
+            'idSalle INTEGER NOT NULL,' +
+            'idSession INTEGER NOT NULL,' +
+
+            'FOREIGN KEY(idSalle) REFERENCES salles(idSalle),' +
+            'FOREIGN KEY(idSession) REFERENCES sessions(idSession)' +
+            ');'
+        )
+        # Link cours-sessions
+        connection.execute(
+            'CREATE TABLE IF NOT EXISTS lienCoSe(' +
+            'idLienCoSe INTEGER PRIMARY KEY AUTOINCREMENT,' +
+            'idCours INTEGER NOT NULL,' +
+            'idSession INTEGER NOT NULL,' +
+
+            'FOREIGN KEY(idCours) REFERENCES cours(idCours),' +
+            'FOREIGN KEY(idSession) REFERENCES sessions(idSession)' +
+            ');'
+        )
+        # Link classes-sessions
+        connection.execute(
+            'CREATE TABLE IF NOT EXISTS lienClSe(' +
+            'idLienClSe INTEGER PRIMARY KEY AUTOINCREMENT,' +
+            'idClasse INTEGER NOT NULL,' +
+            'idSession INTEGER NOT NULL,' +
+
+            'FOREIGN KEY(idClasse) REFERENCES classes(idClasse),' +
+            'FOREIGN KEY(idSession) REFERENCES sessions(idSession)' +
             ');'
         )
         connection.close()
@@ -112,14 +143,19 @@ class DatabaseManager:
         threading.Timer(3600.00, self.build).start()
 
         connection = sqlite3.connect(self.database)
+        cursor = connection.cursor()
 
         # Delete all content to escape conflicts
-        connection.execute("DELETE FROM cours;")
-        connection.execute("DELETE FROM profs;")
-        connection.execute("DELETE FROM salles;")
-        connection.execute("DELETE FROM classes;")
-        connection.execute("DELETE FROM groupes;")
-        connection.execute("DELETE FROM sessions;")
+        cursor.execute("DELETE FROM cours;")
+        cursor.execute("DELETE FROM profs;")
+        cursor.execute("DELETE FROM salles;")
+        cursor.execute("DELETE FROM classes;")
+        cursor.execute("DELETE FROM sessions;")
+        cursor.execute("DELETE FROM lienSaSe;")
+        cursor.execute("DELETE FROM lienPSe;")
+        cursor.execute("DELETE FROM lienClSe;")
+        cursor.execute("DELETE FROM lienCoSe;")
+
         connection.commit()
 
         for i in range(0, len(self.classes)):
@@ -129,28 +165,28 @@ class DatabaseManager:
             for session in sessions_list:
                 if not session.is_empty():
                     try:
-                        self.add_room(session.numeroSalle, connection)
-                    except (sqlite3.IntegrityError, AttributeError) as exception:
-                        LOGGER.exception("%s occured while adding a session",
-                                         type(exception).__name__)
-                    try:
-                        self.add_teacher(session.nomProf, connection)
-                    except (sqlite3.IntegrityError, AttributeError) as exception:
-                        LOGGER.exception("%s occured while adding a session",
-                                         type(exception).__name__)
-                    try:
-                        self.add_course(session.idMatiere, session.nomMatiere, connection)
-                    except (sqlite3.IntegrityError, AttributeError) as exception:
-                        LOGGER.exception("%s occured while adding a session",
-                                         type(exception).__name__)
-                    try:
-                        self.add_class(school_class, connection)
-                    except (sqlite3.IntegrityError, AttributeError) as exception:
-                        LOGGER.exception("%s occured while adding a session",
-                                         type(exception).__name__)
-                    try:
-                        self.add_session(session, school_class, connection)
+                        self.add_session(session, cursor)
                     except (sqlite3.IntegrityError, TypeError) as exception:
+                        LOGGER.exception("%s occured while adding a session",
+                                         type(exception).__name__)
+                    try:
+                        self.add_room(session.numeroSalle, cursor)
+                    except (sqlite3.IntegrityError, AttributeError) as exception:
+                        LOGGER.exception("%s occured while adding a session",
+                                         type(exception).__name__)
+                    try:
+                        self.add_teacher(session.nomProf, cursor)
+                    except (sqlite3.IntegrityError, AttributeError) as exception:
+                        LOGGER.exception("%s occured while adding a session",
+                                         type(exception).__name__)
+                    try:
+                        self.add_course(session.idMatiere, session.nomMatiere, cursor)
+                    except (sqlite3.IntegrityError, AttributeError) as exception:
+                        LOGGER.exception("%s occured while adding a session",
+                                         type(exception).__name__)
+                    try:
+                        self.add_class(school_class, cursor)
+                    except (sqlite3.IntegrityError, AttributeError) as exception:
                         LOGGER.exception("%s occured while adding a session",
                                          type(exception).__name__)
 
@@ -161,77 +197,105 @@ class DatabaseManager:
             .format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         )
 
-    @staticmethod
-    def add_room(room_list: str, connection):
+    def add_room(self, room_list: str, cursor: sqlite3.Cursor):
         """
             Adds a numeroSalle list to the database
         :param room_list: The desired numeroSalle list
-        :param connection: The SQL connection
+        :param cursor: The SQL cursor
         :return:
             None
         """
         rooms = room_list.split(",")
         for room in rooms:
-            connection.execute(
+            cursor.execute(
                 'INSERT OR IGNORE INTO salles(numeroSalle) VALUES("' + room + '");'
             )
+            id = cursor.execute('SELECT idSalle FROM salles WHERE numeroSalle="' + room + '"').fetchone()[0]
+            cursor.execute(
+                'INSERT OR IGNORE INTO lienSaSe(idSession, idSalle) VALUES(' +
+                self.last_session +
+                ', ' +
+                str(id) +
+                ');'
+            )
 
-    @staticmethod
-    def add_teacher(teachers_list: str, connection):
+    def add_teacher(self, teachers_list: str, cursor:sqlite3.Cursor):
         """
             Adds a list of teachers to the database
         :param teachers_list: A list of teachers
-        :param connection: The SQL connection
+        :param cursor: The SQL cursor
         :return:
             None
         """
         teachers = teachers_list.split(", ")
         for teacher in teachers:
-            connection.execute('INSERT OR IGNORE INTO profs(nomProf) VALUES("' + teacher + '");')
+            cursor.execute('INSERT OR IGNORE INTO profs(nomProf) VALUES("' + teacher + '");')
+            id = cursor.execute('SELECT idProf FROM profs WHERE nomProf="' + teacher + '"').fetchone()[0]
+            cursor.execute(
+                'INSERT OR IGNORE INTO lienPSe(idSession, idProf) VALUES(' +
+                self.last_session +
+                ', ' +
+                str(id) +
+                ');'
+            )
 
-    @staticmethod
-    def add_course(course_id: str, course_name: str, connection):
+    def add_course(self, course_id: str, course_name: str, cursor:sqlite3.Cursor):
         """
             Adds a course to the database
         :param course_id: The course ID retrieved from Hyperplanning
         :param course_name: The course nomMatiere
-        :param connection: The SQL connection
+        :param cursor: The SQL cursor
         :return:
             None
         """
-        connection.execute(
+        cursor.execute(
             'INSERT OR IGNORE INTO cours(idMatiere, nomMatiere) VALUES("'
             + course_id
             + '", "'
             + course_name
             + '");'
         )
+        id = cursor.execute('SELECT idCours FROM cours ' +
+                       'WHERE idMatiere="' + course_id + '" ' +
+                       'AND nomMatiere="' + course_name + '"').fetchone()[0]
+        cursor.execute(
+            'INSERT OR IGNORE INTO lienCoSe(idSession, idCours) VALUES(' +
+            self.last_session +
+            ', ' +
+            str(id) +
+            ');'
+        )
 
-    @staticmethod
-    def add_class(school_class: str, connection):
+    def add_class(self, school_class: str, cursor:sqlite3.Cursor):
         """
             Adds a school class to the database
         :param school_class: The desired school class
-        :param connection: The SQL connection
+        :param cursor: The SQL cursor
         :return:
             None
         """
-        connection.execute('INSERT OR IGNORE INTO classes(nomClasse) VALUES("' +
+        cursor.execute('INSERT OR IGNORE INTO classes(nomClasse) VALUES("' +
                            school_class + '");')
+        id = cursor.execute('SELECT idClasse FROM classes WHERE nomClasse="' + school_class + '"').fetchone()[0]
+        cursor.execute(
+            'INSERT OR IGNORE INTO lienClSe(idSession, idClasse) VALUES(' +
+            self.last_session +
+            ', ' +
+            str(id) +
+            ');'
+        )
 
-    @staticmethod
-    def add_session(session: hyperapi.Lesson, school_class: str, connection):
+    def add_session(self, session: hyperapi.Lesson, cursor:sqlite3.Cursor):
         """
             Adds a session to the database
         :param session: The desired session
-        :param school_class: The concerned school class
-        :param connection: The SQL connection
+        :param cursor: The SQL cursor
         :return:
             None
         """
-        connection.execute(
-            """INSERT OR IGNORE INTO sessions(debut, fin, idMatiere, nomMatiere, """ +
-            """nomProf, numeroSalle, typeCours, nomClasse) VALUES (\'"""
+        cursor.execute(
+            """INSERT OR IGNORE INTO sessions(debut, fin, """ +
+            """typeCours) VALUES (\'"""
             + session.dateDebut
             + """ """
             + session.start_db
@@ -239,22 +303,11 @@ class DatabaseManager:
             + session.dateFin
             + """ """
             + session.end_db
-            + '''\', (SELECT id FROM cours WHERE idMatiere=\"'''
-            + session.idMatiere
-            + '''\" AND nomMatiere=\"'''
-            + session.nomMatiere
-            + '''\"), (SELECT id FROM cours WHERE nomMatiere=\"'''
-            + session.nomMatiere
-            + '''\"), (SELECT id FROM profs WHERE nomProf=\"'''
-            + session.nomProf
-            + '''\"),(SELECT id FROM salles WHERE numeroSalle=\"'''
-            + session.numeroSalle
-            + '''\"), \"'''
+            + """\', \'"""
             + session.typeCours
-            + '''\",(SELECT id FROM classes WHERE nomClasse=\"'''
-            + school_class
-            + """\"));"""
+            + """\');"""
         )
+        self.last_session = str(cursor.lastrowid)
 
     def get_sql(self, school_class: str, **kwargs):
         """
@@ -280,28 +333,49 @@ class DatabaseManager:
             begin = str(day.strftime("%Y-%m-%d"))
             end = str((day + datetime.timedelta(days=1)).strftime("%Y-%m-%d"))
 
-        results = cursor.execute(
-            'SELECT DISTINCT debut, fin, cours.idMatiere, ' +
-            'cours.nomMatiere, profs.nomProf, salles.numeroSalle, typeCours ' +
-            'FROM sessions INNER JOIN cours ON sessions.idMatiere=cours.id ' +
-            'INNER JOIN profs ON sessions.nomProf=profs.id ' +
-            'INNER JOIN salles ON sessions.numeroSalle=salles.id ' +
-            'WHERE nomClasse=(SELECT id FROM classes WHERE nomClasse="'
-            + school_class
-            + '") AND debut BETWEEN "'
-            + begin
-            + '" AND "'
-            + end
-            + '" ORDER BY debut;'
+        sessions_results = cursor.execute(
+            'SELECT sessions.debut,' +
+            'sessions.fin,' +
+            'cours.idMatiere,' +
+            'cours.nomMatiere,' +
+            'sessions.id,' +
+            'salles.numeroSalle,' +
+            'sessions.typeCours ' +
+            'FROM sessions ' +
+
+            'INNER JOIN lienClSe ON lienClSe.idSession = sessions.id ' +
+            'INNER JOIN classes ON classes.idClasse = lienClSe.idClasse ' +
+
+            'INNER JOIN lienSaSe ON lienSaSe.idSession = sessions.id ' +
+            'INNER JOIN salles ON salles.idSalle = lienSaSe.idSalle ' +
+
+            'INNER JOIN lienCoSe ON lienCoSe.idSession = sessions.id ' +
+            'INNER JOIN cours ON cours.idCours = lienCoSe.idCours ' +
+
+            'WHERE classes.nomClasse = "' +
+            school_class +
+            '" AND sessions.debut BETWEEN "' +
+            begin +
+            '" AND "' +
+            end +
+            '" ORDER BY debut;'
         ).fetchall()
 
-        for session in results:
+        for session in sessions_results:
+            profs = cursor.execute('SELECT profs.nomProf FROM sessions ' +
+                                   'INNER JOIN lienPSe ON lienPSe.idSession = sessions.id ' +
+                                   'INNER JOIN profs ON lienPSe.idProf = profs.idProf ' +
+                                   'WHERE sessions.id = ' + str(session[4])).fetchall()
+            new_str = ""
+            for o in profs:
+                new_str += o[0] + ", "
+            new_str = new_str[:-2]
             try:
                 sessions_list.append(
                     hyperapi.Lesson(
                         idMatiere=session[2],
                         nomMatiere=session[3],
-                        nomProf=session[4],
+                        nomProf=new_str,
                         typeCours=session[6],
                         numeroSalle=session[5],
                         dateDebut=session[0].split()[0],
